@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Appenders>
+        <Console name="Stderr" target="SYSTEM_ERR">
+            <PatternLayout pattern="[%p] %m%n%throwable" />
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Root level="error">
+            <AppenderRef ref="Stderr" />
+        </Root>
+    </Loggers>
+</Configuration>
