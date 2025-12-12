@@ -30,6 +30,9 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+
 
 public class PrimeScan {
     private static final Logger log = LoggerFactory.getLogger(PrimeScan.class);
@@ -77,33 +80,81 @@ public class PrimeScan {
         SheetIterator sheetIterator = (SheetIterator) xssfReader.getSheetsData();
 
         try (InputStream sheet = getSheetAt(sheetIterator, sheetIdx)) {
-            processSheet(styles, sharedStrings, new PrimesDataHandler(), sheet);
+            PrimesDataHandler sheetHandler = new PrimesDataHandler(output, dataColumIdx);
+            processSheet(styles, sharedStrings, sheetHandler, sheet);
+            sheetHandler.finish();
         }
     }
 
-    private class PrimesDataHandler implements SheetContentsHandler {
+    private static class PrimesDataHandler implements SheetContentsHandler {
+
+        // Need a private constant unique instance, not a string literal that can collide with an input value
+        private static final String POISON_PILL = new String("__STOP__");
+
+        private final int dataColumnIdx;
+        private final PrintStream output;
+        private final BlockingQueue<String> queue = new LinkedBlockingQueue<>();
+        private final Thread worker;
+
+        public PrimesDataHandler(PrintStream output, int dataColumnIdx) {
+            this.output = output;
+            this.dataColumnIdx = dataColumnIdx;
+            this.worker = new Thread(this::consumeLoop, "prime-check-worker");
+            this.worker.start();
+        }
+
         @Override
         public void startRow(int rowNum) {
         }
 
         @Override
-        public void endRow(int rowNum) {}
+        public void endRow(int rowNum) {
+        }
 
         @Override
         public void cell(String cellReference, String formattedValue, XSSFComment comment) {
-            // no need to do anything if we do not have a value or reference
+            // skip processing when either the value or the cell reference is missing
             if (StringUtils.isAnyBlank(formattedValue, cellReference)) {
                 return;
             }
-            // process only the column we are interested in
-            if(new CellReference(cellReference).getCol() != dataColumIdx) {
+            // skip processing when the cell reference does not match the requested column
+            if (new CellReference(cellReference).getCol() != dataColumnIdx) {
                 return;
             }
+
             try {
-                formattedValue = formattedValue.trim();
+                queue.put(formattedValue);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+        }
+
+        private void consumeLoop() {
+            try {
+                while (true) {
+                    String value = queue.take().trim();
+
+                    // IMPORTANT:
+                    // This comparison intentionally uses identity (==), NOT String.equals(),
+                    // because no real cell value can reference this exact object.
+                    // Do NOT replace with equals().
+                    if (value == POISON_PILL) {
+                        break;
+                    }
+                    processValue(value);
+                }
+            } catch (InterruptedException e) {
+                log.debug("Interrupted while waiting for queue item.");
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        private void processValue(String formattedValue) {
+            try {
                 BigInteger number = new BigInteger(formattedValue);
                 // skip negative numbers and zeros
-                if(number.signum() < 1) {
+                if (number.signum() < 1) {
                     return;
                 }
                 // write out primes
@@ -111,7 +162,23 @@ public class PrimeScan {
                     output.println(formattedValue);
                 }
             } catch (NumberFormatException e) {
-                log.debug("Failed to parse number from cell {}: {}", cellReference, e.getMessage());
+                // no cellReference, only formattedValue as requested
+                log.debug("Failed to parse number: {}", formattedValue);
+            }
+        }
+
+        /**
+         * Call when the document parsing is finished.
+         * Waits for the worker to finish processing the queue.
+         */
+        public void finish() {
+            try {
+                // signal worker to stop
+                queue.put(POISON_PILL);
+                worker.join();
+            } catch (InterruptedException e) {
+                log.debug("Interrupted while waiting for worker to finish.");
+                Thread.currentThread().interrupt();
             }
         }
     }
