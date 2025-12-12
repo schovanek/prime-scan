@@ -86,6 +86,11 @@ class PrimeScanTest {
                         340282366920938463463374607431768211297
                         17
                         23
+                        """),
+                // poison pill in Data column should not stop processing
+                Arguments.of("/data/poison_pill.xlsx", """
+                        7
+                        13
                         """)
         );
     }
