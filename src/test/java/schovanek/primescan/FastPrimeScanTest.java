@@ -1,6 +1,5 @@
 package schovanek.primescan;
 
-import org.apache.poi.util.IOUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -15,15 +14,10 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class POIPrimeScanTest {
+class FastPrimeScanTest {
 
     public static final int DATA_COLUM_IDX = 1;
     public static final int SHEET_IDX = 0;
-
-    static {
-        // workaround for org.apache.poi.util.RecordFormatException
-        IOUtils.setByteArrayMaxOverride(150_000_000);
-    }
 
     @Test
     void whenLargeXlsxThenOutputHasExpectedLength() {
@@ -33,8 +27,8 @@ class POIPrimeScanTest {
 
         try {
             InputStream xlsxInputStream = getClass().getResourceAsStream(testFile);
-            POIPrimeScan POIPrimeScan = new POIPrimeScan(output, DATA_COLUM_IDX, SHEET_IDX);
-            POIPrimeScan.process(xlsxInputStream);
+            FastPrimeScan primeScan = new FastPrimeScan(output, DATA_COLUM_IDX, SHEET_IDX);
+            primeScan.process(xlsxInputStream);
         } catch (Exception e) {
             Assertions.fail("Failed to process file: " + testFile, e);
         }
@@ -53,8 +47,8 @@ class POIPrimeScanTest {
 
         try {
             InputStream xlsxInputStream = getClass().getResourceAsStream(testFile);
-            POIPrimeScan POIPrimeScan = new POIPrimeScan(output, DATA_COLUM_IDX, SHEET_IDX);
-            POIPrimeScan.process(xlsxInputStream);
+            FastPrimeScan primeScan = new FastPrimeScan(output, DATA_COLUM_IDX, SHEET_IDX);
+            primeScan.process(xlsxInputStream);
         } catch (Exception e) {
             Assertions.fail("Failed to process file: " + testFile, e);
         }

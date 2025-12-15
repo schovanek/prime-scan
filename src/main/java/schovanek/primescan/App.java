@@ -18,7 +18,7 @@ public class App {
 
         if (args.length < 1) {
             System.err.println(
-                    "usage: java -jar primescan-1.0.jar <xlsx file> [--debug]");
+                    "usage: java -jar primescan-2.0.jar <xlsx file> [--debug]");
             System.exit(1);
         }
 
@@ -36,8 +36,8 @@ public class App {
         int sheetIdx = 0;
 
         try (InputStream xlsxInputStream = Files.newInputStream(xlsxFile.toPath())){
-            POIPrimeScan POIPrimeScan = new POIPrimeScan(System.out, dataColumIdx, sheetIdx);
-            POIPrimeScan.process(xlsxInputStream);
+            FastPrimeScan primeScan = new FastPrimeScan(System.out, dataColumIdx, sheetIdx);
+            primeScan.process(xlsxInputStream);
         } catch (Exception e) {
             System.err.println("Failed to process file: " + xlsxFile.getPath() + ": " + e.getMessage());
             log.error("Failed to process file: {}", xlsxFile.getPath(), e);
