@@ -1,7 +1,5 @@
 package schovanek.primescan;
 
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.util.IOUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -10,16 +8,14 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class PrimeScanTest {
+class POIPrimeScanTest {
 
     public static final int DATA_COLUM_IDX = 1;
     public static final int SHEET_IDX = 0;
@@ -33,11 +29,12 @@ class PrimeScanTest {
     void whenLargeXlsxThenOutputHasExpectedLength() {
         String testFile = "/data/990K64BitNumbers.xlsx";
         ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
-        PrintStream ps = new PrintStream(arrayOutputStream);
+        PrintStream output = new PrintStream(arrayOutputStream);
 
-        try (OPCPackage pkg = openXlsx(testFile)) {
-            PrimeScan primeScan = new PrimeScan(pkg, ps, DATA_COLUM_IDX, SHEET_IDX);
-            primeScan.process();
+        try {
+            InputStream xlsxInputStream = getClass().getResourceAsStream(testFile);
+            POIPrimeScan POIPrimeScan = new POIPrimeScan(output, DATA_COLUM_IDX, SHEET_IDX);
+            POIPrimeScan.process(xlsxInputStream);
         } catch (Exception e) {
             Assertions.fail("Failed to process file: " + testFile, e);
         }
@@ -52,11 +49,12 @@ class PrimeScanTest {
     @MethodSource("provideXlsxFilePathsAndExpectedOutputs")
     void whenValidXlsxThenExpectedPrimesFound(String testFile, String expectedOutput) {
         ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
-        PrintStream ps = new PrintStream(arrayOutputStream);
+        PrintStream output = new PrintStream(arrayOutputStream);
 
-        try (OPCPackage pkg = openXlsx(testFile)) {
-            PrimeScan primeScan = new PrimeScan(pkg, ps, DATA_COLUM_IDX, SHEET_IDX);
-            primeScan.process();
+        try {
+            InputStream xlsxInputStream = getClass().getResourceAsStream(testFile);
+            POIPrimeScan POIPrimeScan = new POIPrimeScan(output, DATA_COLUM_IDX, SHEET_IDX);
+            POIPrimeScan.process(xlsxInputStream);
         } catch (Exception e) {
             Assertions.fail("Failed to process file: " + testFile, e);
         }
@@ -93,10 +91,5 @@ class PrimeScanTest {
                         13
                         """)
         );
-    }
-
-    private OPCPackage openXlsx(String path) throws IOException, InvalidFormatException {
-        InputStream is = getClass().getResourceAsStream(path);
-        return OPCPackage.open(Objects.requireNonNull(is), true);
     }
 }

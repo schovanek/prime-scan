@@ -13,6 +13,7 @@ import org.apache.poi.openxml4j.exceptions.OpenXML4JException;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.util.IOUtils;
 import org.apache.poi.util.XMLHelper;
 import org.apache.poi.xssf.eventusermodel.ReadOnlySharedStringsTable;
 import org.apache.poi.xssf.eventusermodel.XSSFReader;
@@ -33,30 +34,49 @@ import org.xml.sax.XMLReader;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+public class POIPrimeScan {
+    private static final Logger log = LoggerFactory.getLogger(POIPrimeScan.class);
 
-public class PrimeScan {
-    private static final Logger log = LoggerFactory.getLogger(PrimeScan.class);
-
-    private final OPCPackage xlsxPackage;
     private final int dataColumIdx;
     private final int sheetIdx;
     private final PrintStream output;
 
     /**
-     * Creates a new PrimeScan
+     * Creates a new POIPrimeScan
      *
-     * @param pkg        The XLSX package to process
-     * @param output     The PrintStream to output the Primes to
+     * @param output        The PrintStream to output the Primes to
+     * @param sheetIdx      Index of the sheet that contains the data
      * @param dataColumIdx  Index of the column that contains the data
      */
-    public PrimeScan(OPCPackage pkg, PrintStream output, int dataColumIdx, int sheetIdx) {
-        this.xlsxPackage = pkg;
+    public POIPrimeScan(PrintStream output, int dataColumIdx, int sheetIdx) {
         this.output = output;
         this.dataColumIdx = dataColumIdx;
         this.sheetIdx = sheetIdx;
     }
 
-    public void processSheet(Styles styles, SharedStrings strings, SheetContentsHandler sheetHandler,
+    public void process(InputStream xlsxInputStream) throws IOException, OpenXML4JException, SAXException {
+        // workaround for org.apache.poi.util.RecordFormatException
+        IOUtils.setByteArrayMaxOverride(150_000_000);
+
+        try (OPCPackage xlsxPackage = OPCPackage.open(xlsxInputStream)){
+            procesPackage(xlsxPackage);
+        }
+    }
+
+    private void procesPackage(OPCPackage xlsxPackage) throws IOException, SAXException, OpenXML4JException {
+        ReadOnlySharedStringsTable sharedStrings = new ReadOnlySharedStringsTable(xlsxPackage);
+        XSSFReader xssfReader = new XSSFReader(xlsxPackage);
+        StylesTable styles = xssfReader.getStylesTable();
+        SheetIterator sheetIterator = (SheetIterator) xssfReader.getSheetsData();
+
+        try (InputStream sheet = getSheetAt(sheetIterator, sheetIdx)) {
+            PrimesDataHandler sheetHandler = new PrimesDataHandler(output, dataColumIdx);
+            processSheet(styles, sharedStrings, sheetHandler, sheet);
+            sheetHandler.finish();
+        }
+    }
+
+    private void processSheet(Styles styles, SharedStrings strings, SheetContentsHandler sheetHandler,
             InputStream sheetInputStream) throws IOException, SAXException {
 
         DataFormatter formatter = new DataFormatter();
@@ -70,19 +90,6 @@ public class PrimeScan {
             sheetParser.parse(sheetSource);
         } catch (ParserConfigurationException e) {
             throw new RuntimeException("SAX parser configuration error: " + e.getMessage(), e);
-        }
-    }
-
-    public void process() throws IOException, OpenXML4JException, SAXException {
-        ReadOnlySharedStringsTable sharedStrings = new ReadOnlySharedStringsTable(this.xlsxPackage);
-        XSSFReader xssfReader = new XSSFReader(this.xlsxPackage);
-        StylesTable styles = xssfReader.getStylesTable();
-        SheetIterator sheetIterator = (SheetIterator) xssfReader.getSheetsData();
-
-        try (InputStream sheet = getSheetAt(sheetIterator, sheetIdx)) {
-            PrimesDataHandler sheetHandler = new PrimesDataHandler(output, dataColumIdx);
-            processSheet(styles, sharedStrings, sheetHandler, sheet);
-            sheetHandler.finish();
         }
     }
 

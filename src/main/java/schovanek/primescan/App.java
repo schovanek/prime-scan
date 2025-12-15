@@ -1,12 +1,12 @@
 package schovanek.primescan;
 
 import java.io.File;
+import java.io.InputStream;
+import java.nio.file.Files;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.apache.poi.openxml4j.opc.PackageAccess;
-import org.apache.poi.util.IOUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,11 +34,10 @@ public class App {
 
         int dataColumIdx = 1;
         int sheetIdx = 0;
-        // workaround for org.apache.poi.util.RecordFormatException
-        IOUtils.setByteArrayMaxOverride(150_000_000);
-        try (OPCPackage pkg = OPCPackage.open(xlsxFile.getPath(), PackageAccess.READ)){
-            PrimeScan primeScan = new PrimeScan(pkg, System.out, dataColumIdx, sheetIdx);
-            primeScan.process();
+
+        try (InputStream xlsxInputStream = Files.newInputStream(xlsxFile.toPath())){
+            POIPrimeScan POIPrimeScan = new POIPrimeScan(System.out, dataColumIdx, sheetIdx);
+            POIPrimeScan.process(xlsxInputStream);
         } catch (Exception e) {
             System.err.println("Failed to process file: " + xlsxFile.getPath() + ": " + e.getMessage());
             log.error("Failed to process file: {}", xlsxFile.getPath(), e);
