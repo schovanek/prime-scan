@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class FastPrimeScanTest {
 
-    public static final int DATA_COLUM_IDX = 1;
+    public static final int DATA_COLUMN_IDX = 1;
     public static final int SHEET_IDX = 0;
 
     @Test
@@ -27,7 +27,7 @@ class FastPrimeScanTest {
 
         try {
             InputStream xlsxInputStream = getClass().getResourceAsStream(testFile);
-            FastPrimeScan primeScan = new FastPrimeScan(output, DATA_COLUM_IDX, SHEET_IDX);
+            FastPrimeScan primeScan = new FastPrimeScan(output, DATA_COLUMN_IDX, SHEET_IDX);
             primeScan.process(xlsxInputStream);
         } catch (Exception e) {
             Assertions.fail("Failed to process file: " + testFile, e);
@@ -47,7 +47,7 @@ class FastPrimeScanTest {
 
         try {
             InputStream xlsxInputStream = getClass().getResourceAsStream(testFile);
-            FastPrimeScan primeScan = new FastPrimeScan(output, DATA_COLUM_IDX, SHEET_IDX);
+            FastPrimeScan primeScan = new FastPrimeScan(output, DATA_COLUMN_IDX, SHEET_IDX);
             primeScan.process(xlsxInputStream);
         } catch (Exception e) {
             Assertions.fail("Failed to process file: " + testFile, e);
